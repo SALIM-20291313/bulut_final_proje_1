@@ -19,7 +19,8 @@ exports.watchPage = async (req, res) => {
 exports.dashboard = async (req, res) => {
   try {
     const videos = await Video.find().sort({ createdAt: -1 });
-    res.render('dashboard', { title: 'Video Listesi', videos });
+    const uploadedOnly = videos.filter(v => !v.streamKey);
+    res.render('dashboard', { title: 'Video Listesi', videos: uploadedOnly });
   } catch (err) {
     res.status(500).render('error', { title: 'Hata', error: err.message });
   }

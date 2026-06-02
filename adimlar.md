@@ -445,3 +445,110 @@ Proje 1 - Video Akışı ve İşleme Uygulaması/
 ├── media/                       # RTMP medya dosyaları
 └── node_modules/                # npm paketleri
 ```
+
+---
+
+## Adım 11: AWS Rekognition Frame-by-Frame Analiz (S3 Alternatifi)
+
+**Yapılanlar:**
+- S3 + Rekognition Video API erişim sorunu nedeniyle alternatif yönteme geçildi
+- `@ffmpeg-installer/ffmpeg` ile videodan 6 kare çıkarılıyor (eşit aralıklarla)
+- Her kare AWS Rekognition Image API'ye gönderiliyor (`detectLabels`, `detectFaces`, `detectText`, `detectModerationLabels`)
+- S3 kullanmaz, direkt `Bytes` parametresi ile çalışır
+- Zaman damgaları kare pozisyonundan hesaplanır
+- MinConfidence %75 filtresi aktif
+
+**Kazanım:** S3 izni olmadan da Rekognition çalışır.
+
+---
+
+## Adım 12: Arayüz İyileştirmeleri
+
+**Yapılanlar:**
+- Dashboard ve Analizler sayfası: Her video için **"Canlı Yayın Başlat"** butonu eklendi
+- Analizler sayfası: Her video için **"Sil"** butonu eklendi
+- Canlı yayın izleme: **"Yayını Durdur"** butonu eklendi
+- Nav bar: **"Canlı Yayın"** sekmesi eklendi
+- Dashboard: Sadece yüklenen videolar gösteriliyor (stream'ler filtrelendi)
+- Ana sayfa: Azure ve GCP referansları kaldırıldı, sadece AWS kaldı
+- Tüm analiz kartlarına **silme butonu** eklendi
+
+---
+
+## Adım 13: Canlı Kamera + Gerçek Zamanlı AWS Rekognition Analizi
+
+**Kullanılan Teknolojiler:**
+- **WebRTC / getUserMedia:** Tarayıcıdan web kamerası erişimi
+- **Socket.IO:** Tarayıcı → backend gerçek zamanlı veri akışı
+- **FFmpeg (pipe):** Web kamerası görüntüsünü RTMP'ye çevirme
+- **AWS Rekognition (Image API):** Her 3 saniyede bir kare analizi
+
+**Mimari:**
+```
+Web Kamerası (tarayıcı)
+    │
+    ├─► getUserMedia → <video> → <canvas> → toDataURL()
+    │       │
+    │       └─► MediaRecorder → socket.io → backend FFmpeg stdin → RTMP
+    │
+    └─► setInterval(3s):
+            canvas.toDataURL() → POST /api/live/analyze → AWS Rekognition
+            → JSON yanıt → DOM güncelle (sayfa yenilenmez)
+```
+
+**Yeni API Endpoint'i:**
+| Method | Endpoint | Açıklama |
+|--------|----------|----------|
+| POST | /api/live/analyze | Base64 frame al, Rekognition'a gönder, sonuç döndür |
+
+**Socket.IO Olayları:**
+| Olay | Yön | Açıklama |
+|------|-----|----------|
+| live:start | Client → Server | Yayını başlat, FFmpeg pipe oluştur |
+| live:data | Client → Server | MediaRecorder veri parçası |
+| live:ready | Server → Client | FFmpeg pipe hazır |
+| live:stop | Client → Server | Yayını durdur |
+
+**Yeni Servis Fonksiyonu (`aiService.js`):**
+```js
+analyzeFrame(imageBuffer) → { labels, faces, texts, moderation }
+```
+Tek bir kareyi Rekognition'a gönderir, S3 kullanmaz.
+
+**Frontend Arayüzü:**
+- Sol panel: Kamera önizlemesi + kontrol butonları
+- Sağ panel: Canlı analiz sonuçları (her 3 saniyede bir güncellenir)
+- Etiketler, yüz tespitleri, metinler anlık akar
+
+---
+
+## Adım 14: GitHub'a Yükleme
+
+**Yapılanlar:**
+- `git init` ile repo başlatıldı
+- `.gitignore` ile `.env`, `node_modules/`, `data/`, `uploads/` korundu
+- 28+ dosya commit edildi
+- `https://github.com/SALIM-20291313/bulut_final_proje_1.git` adresine push edildi
+
+**Güvenlik:** `.env` dosyası (AWS key'ler) GitHub'a YÜKLENMEDİ.
+
+---
+
+## Güncel Çıktı Listesi
+
+| # | Çıktı | Durum |
+|---|-------|-------|
+| 1 | Video yükleme ve yönetim sistemi | Tamamlandı |
+| 2 | RTMP canlı yayın altyapısı | Tamamlandı |
+| 3 | Web kamerası → RTMP canlı yayın | Tamamlandı |
+| 4 | AWS Rekognition frame analizi | Tamamlandı |
+| 5 | Canlı kamera + Rekognition (3 saniyede bir) | Tamamlandı |
+| 6 | Nesne tanıma ve etiketleme | Tamamlandı |
+| 7 | Yüz tanıma, yaş/cinsiyet/duygu analizi | Tamamlandı |
+| 8 | Metin çıkarma (OCR) | Tamamlandı |
+| 9 | İçerik moderasyonu | Tamamlandı |
+| 10 | Zaman damgalı analiz sonuçları | Tamamlandı |
+| 11 | Bounding box koordinatları | Tamamlandı |
+| 12 | Analiz geçmişi ve silme | Tamamlandı |
+| 13 | Web tabanlı kullanıcı arayüzü | Tamamlandı |
+| 14 | GitHub'a güvenli yükleme | Tamamlandı |

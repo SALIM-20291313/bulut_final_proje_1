@@ -1,57 +1,248 @@
 <%- include('header') %>
 
-<% if (typeof stream !== 'undefined' && stream) { %>
-  <h2 style="margin-bottom:8px;"><%= stream.title %></h2>
-  <p style="color:#94a3b8; margin-bottom:20px;">Canlı Yayın - Stream Key: <b><%= stream.streamKey %></b></p>
+<h2 style="margin-bottom:8px;">Canlı Kamera & Gerçek Zamanlı Analiz</h2>
+<p style="color:#94a3b8; margin-bottom:20px;">Web kamerası açın, canlı yayın başlatın ve AWS Rekognition ile anlık analiz yapın</p>
 
-  <div class="card">
-    <div style="text-align:center; padding:20px;">
-      <p style="color:#f59e0b; font-size:18px; margin-bottom:16px;">Yayın şu anda aktif olmayabilir</p>
-      <p style="color:#94a3b8; margin-bottom:8px;">RTMP yayın adresi:</p>
-      <code style="background:#0f172a; padding:8px 16px; border-radius:6px; display:inline-block;">
-        rtmp://localhost:1935/live/<%= stream.streamKey %>
-      </code>
-      <p style="color:#94a3b8; margin-top:16px;">OBS Studio ile bu adrese yayın yapabilirsiniz</p>
+<div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
+
+  <div>
+    <div class="card" style="text-align:center;">
+      <h3>Kamera</h3>
+      <video id="cameraPreview" autoplay muted playsinline style="width:100%; border-radius:10px; background:#000; transform:scaleX(-1);"></video>
+      <canvas id="frameCanvas" style="display:none;"></canvas>
+
+      <div style="margin-top:12px; display:flex; gap:8px; justify-content:center; flex-wrap:wrap;">
+        <button id="btnCamera" class="btn" onclick="toggleCamera()">Kamerayı Aç</button>
+        <button id="btnStream" class="btn btn-success" onclick="startLiveStream()" disabled>Canlı Yayını Başlat</button>
+        <button id="btnAnalyze" class="btn btn-warning" onclick="toggleAnalysis()" disabled>Analizi Başlat</button>
+      </div>
+
+      <div id="streamInfo" style="margin-top:12px; font-size:13px; color:#64748b;"></div>
     </div>
   </div>
 
-<% } else { %>
-  <h2 style="margin-bottom:20px;">Canlı Yayın Demo</h2>
-  <div class="card" style="text-align:center; padding:40px;">
-    <p style="color:#94a3b8; font-size:16px; margin-bottom:16px;">
-      Canlı yayın başlatmak için bir stream oluşturun veya mevcut bir yayını izleyin.
-    </p>
-    <button class="btn" onclick="createStream()" style="font-size:15px; padding:14px 28px;">Yeni Yayın Başlat</button>
-    <div id="streamInfo" style="margin-top:20px;"></div>
+  <div>
+    <div class="card">
+      <h3>Canlı Analiz Sonuçları <span id="analysisBadge" class="badge" style="background:#334155; font-size:11px;">Bekliyor</span></h3>
+      <div id="resultsContainer" style="max-height:400px; overflow-y:auto;">
+        <p style="color:#64748b; font-size:13px;">Kamerayı açıp analizi başlatın...</p>
+      </div>
+    </div>
   </div>
-<% } %>
+
+</div>
 
 <div style="margin-top:20px;">
   <a href="/" class="btn" style="background:#334155;">Ana Sayfa</a>
 </div>
 
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 <script>
-  async function createStream() {
+  let mediaStream = null;
+  let analysisInterval = null;
+  let analysisActive = false;
+  let analysisCount = 0;
+  let socket = null;
+  let streamKey = '';
+
+  const cameraPreview = document.getElementById('cameraPreview');
+  const frameCanvas = document.getElementById('frameCanvas');
+  const btnCamera = document.getElementById('btnCamera');
+  const btnStream = document.getElementById('btnStream');
+  const btnAnalyze = document.getElementById('btnAnalyze');
+  const resultsContainer = document.getElementById('resultsContainer');
+  const analysisBadge = document.getElementById('analysisBadge');
+  const streamInfo = document.getElementById('streamInfo');
+
+  async function toggleCamera() {
+    if (mediaStream) {
+      stopCamera();
+      return;
+    }
+    try {
+      mediaStream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 }, audio: true });
+      cameraPreview.srcObject = mediaStream;
+      btnCamera.textContent = 'Kamerayı Kapat';
+      btnCamera.style.background = '#ef4444';
+      btnStream.disabled = false;
+      btnAnalyze.disabled = false;
+      streamInfo.innerHTML = '<span style="color:#22c55e;">Kamera aktif</span>';
+    } catch (err) {
+      alert('Kamera erisimi reddedildi veya bulunamadi: ' + err.message);
+    }
+  }
+
+  function stopCamera() {
+    if (mediaStream) {
+      mediaStream.getTracks().forEach(t => t.stop());
+      mediaStream = null;
+    }
+    stopAnalysis();
+    stopRTMP();
+    cameraPreview.srcObject = null;
+    btnCamera.textContent = 'Kamerayı Aç';
+    btnCamera.style.background = '#3b82f6';
+    btnStream.disabled = true;
+    btnStream.textContent = 'Canlı Yayını Başlat';
+    btnAnalyze.disabled = true;
+    btnAnalyze.textContent = 'Analizi Başlat';
+    streamInfo.innerHTML = '';
+  }
+
+  async function startLiveStream() {
+    if (socket && socket.connected) {
+      stopRTMP();
+      btnStream.textContent = 'Canlı Yayını Başlat';
+      return;
+    }
+
     try {
       const res = await fetch('/api/streams/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: 'Canlı Yayın - ' + new Date().toLocaleTimeString('tr-TR') })
+        body: JSON.stringify({ title: 'Canli Kamera - ' + new Date().toLocaleTimeString('tr-TR') })
       });
       const data = await res.json();
-      document.getElementById('streamInfo').innerHTML = `
-        <div class="card" style="max-width:600px; margin:0 auto; text-align:left;">
-          <h3>Yayın Oluşturuldu</h3>
-          <p><b>Stream Key:</b> ${data.stream.streamKey}</p>
-          <p><b>RTMP URL:</b> <code>${data.rtmpPublishUrl}/${data.stream.streamKey}</code></p>
-          <div style="margin-top:12px;">
-            <a href="${data.watchUrl}" class="btn btn-success">İzlemeye Git</a>
-          </div>
-        </div>
-      `;
+      streamKey = data.stream.streamKey;
+
+      socket = io();
+      socket.emit('live:start', { streamKey });
+
+      socket.on('live:ready', () => {
+        btnStream.textContent = 'Yayını Durdur';
+        btnStream.style.background = '#ef4444';
+        streamInfo.innerHTML = `
+          <span style="color:#22c55e;">Yayın aktif!</span><br>
+          <span style="font-size:11px;">İzleme: <a href="/api/streams/watch/${data.stream.id}" target="_blank" style="color:#3b82f6;">/api/streams/watch/${data.stream.id}</a></span>
+        `;
+        startSendingChunks();
+      });
     } catch (err) {
-      document.getElementById('streamInfo').innerHTML = `<p style="color:#ef4444;">Hata: ${err.message}</p>`;
+      alert('Yayin hatasi: ' + err.message);
     }
   }
+
+  function startSendingChunks() {
+    const recorder = new MediaRecorder(mediaStream, { mimeType: 'video/webm;codecs=vp8,opus', videoBitsPerSecond: 500000 });
+    recorder.ondataavailable = (e) => {
+      if (e.data.size > 0 && socket && socket.connected) {
+        const reader = new FileReader();
+        reader.onload = () => {
+          socket.emit('live:data', reader.result);
+        };
+        reader.readAsArrayBuffer(e.data);
+      }
+    };
+    recorder.start(500);
+    socket.recorder = recorder;
+  }
+
+  function stopRTMP() {
+    if (socket) {
+      if (socket.recorder) socket.recorder.stop();
+      socket.emit('live:stop');
+      socket.disconnect();
+      socket = null;
+    }
+    streamInfo.innerHTML = '';
+  }
+
+  function toggleAnalysis() {
+    if (analysisActive) {
+      stopAnalysis();
+      btnAnalyze.textContent = 'Analizi Başlat';
+      btnAnalyze.style.background = '#f59e0b';
+      analysisBadge.textContent = 'Durduruldu';
+      analysisBadge.style.background = '#334155';
+    } else {
+      startAnalysis();
+      btnAnalyze.textContent = 'Analizi Durdur';
+      btnAnalyze.style.background = '#ef4444';
+      analysisBadge.textContent = 'Aktif';
+      analysisBadge.style.background = '#22c55e';
+    }
+  }
+
+  function startAnalysis() {
+    analysisActive = true;
+    resultsContainer.innerHTML = '';
+    analysisCount = 0;
+
+    const ctx = frameCanvas.getContext('2d');
+    frameCanvas.width = 640;
+    frameCanvas.height = 480;
+
+    async function captureAndAnalyze() {
+      if (!analysisActive) return;
+      ctx.drawImage(cameraPreview, 0, 0, 640, 480);
+      const base64 = frameCanvas.toDataURL('image/jpeg', 0.7);
+      analysisCount++;
+
+      try {
+        const res = await fetch('/api/live/analyze', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ image: base64 })
+        });
+        const data = await res.json();
+
+        const now = new Date().toLocaleTimeString('tr-TR');
+        let html = '<div style="padding:10px; border-bottom:1px solid #334155;">';
+        html += '<div style="display:flex;justify-content:space-between;margin-bottom:6px;">';
+        html += '<b style="color:#3b82f6;">#' + analysisCount + '</b>';
+        html += '<span style="color:#64748b;font-size:12px;">' + now + '</span>';
+        html += '</div>';
+
+        if (data.labels && data.labels.length > 0) {
+          html += '<div style="margin-bottom:4px;"><b style="font-size:12px;color:#94a3b8;">Etiketler:</b> ';
+          data.labels.forEach(l => {
+            html += '<span class="tag" style="font-size:11px;">' + l.name + ' <span style="color:#22c55e;">%' + l.confidence.toFixed(1) + '</span></span> ';
+          });
+          html += '</div>';
+        }
+
+        if (data.faces && data.faces.length > 0) {
+          html += '<div style="margin-bottom:4px;"><b style="font-size:12px;color:#94a3b8;">Yüzler:</b> ';
+          data.faces.forEach(f => {
+            const emo = (f.emotions || []).join(', ');
+            html += '<span class="tag" style="font-size:11px;background:#1e3a5f;">' + f.gender + ' ' + f.ageRange.low + '-' + f.ageRange.high + ' ' + (emo || '') + ' <span style="color:#22c55e;">%' + f.confidence.toFixed(1) + '</span></span> ';
+          });
+          html += '</div>';
+        }
+
+        if (data.texts && data.texts.length > 0) {
+          html += '<div><b style="font-size:12px;color:#94a3b8;">Metin:</b> ';
+          data.texts.forEach(t => {
+            html += '<span class="tag" style="font-size:11px;background:#1e3a1f;">"' + t.text + '" <span style="color:#22c55e;">%' + t.confidence.toFixed(1) + '</span></span> ';
+          });
+          html += '</div>';
+        }
+
+        if (!data.labels?.length && !data.faces?.length && !data.texts?.length) {
+          html += '<span style="color:#64748b;font-size:12px;">Tespit edilen bir sey yok</span>';
+        }
+
+        html += '</div>';
+        resultsContainer.insertAdjacentHTML('afterbegin', html);
+      } catch (e) {
+        resultsContainer.insertAdjacentHTML('afterbegin', '<p style="color:#ef4444;font-size:12px;">Hata: ' + e.message + '</p>');
+      }
+    }
+
+    captureAndAnalyze();
+    analysisInterval = setInterval(captureAndAnalyze, 3000);
+  }
+
+  function stopAnalysis() {
+    analysisActive = false;
+    if (analysisInterval) clearInterval(analysisInterval);
+    analysisInterval = null;
+  }
+
+  window.addEventListener('beforeunload', () => {
+    stopAnalysis();
+    stopRTMP();
+    if (mediaStream) mediaStream.getTracks().forEach(t => t.stop());
+  });
 </script>
 <%- include('footer') %>

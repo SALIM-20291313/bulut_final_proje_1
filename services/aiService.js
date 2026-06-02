@@ -206,6 +206,61 @@ async function analyzeVideo(videoPath, provider = 'aws') {
   };
 }
 
+async function analyzeFrame(imageBuffer) {
+  const rekognition = getRekognition();
+
+  const labels = [];
+  const faces = [];
+  const texts = [];
+  const moderation = [];
+
+  try {
+    const labelResult = await rekognition.detectLabels({
+      Image: { Bytes: imageBuffer }, MaxLabels: 20, MinConfidence: MIN_CONFIDENCE
+    }).promise();
+    for (const l of (labelResult.Labels || [])) {
+      labels.push({ name: l.Name, confidence: l.Confidence });
+    }
+  } catch (e) { console.error('Label:', e.message); }
+
+  try {
+    const faceResult = await rekognition.detectFaces({
+      Image: { Bytes: imageBuffer }, Attributes: ['ALL']
+    }).promise();
+    for (const f of (faceResult.FaceDetails || [])) {
+      if (f.Confidence < MIN_CONFIDENCE) continue;
+      faces.push({
+        confidence: f.Confidence,
+        ageRange: { low: f.AgeRange?.Low || 0, high: f.AgeRange?.High || 0 },
+        gender: f.Gender?.Value || '?',
+        emotions: (f.Emotions || []).filter(e => e.Confidence >= MIN_CONFIDENCE).slice(0, 3).map(e => e.Type)
+      });
+    }
+  } catch (e) { console.error('Face:', e.message); }
+
+  try {
+    const textResult = await rekognition.detectText({
+      Image: { Bytes: imageBuffer }
+    }).promise();
+    for (const t of (textResult.TextDetections || [])) {
+      if (t.Type === 'LINE' && t.Confidence >= MIN_CONFIDENCE) {
+        texts.push({ text: t.DetectedText, confidence: t.Confidence });
+      }
+    }
+  } catch (e) { console.error('Text:', e.message); }
+
+  try {
+    const modResult = await rekognition.detectModerationLabels({
+      Image: { Bytes: imageBuffer }, MinConfidence: MIN_CONFIDENCE
+    }).promise();
+    for (const m of (modResult.ModerationLabels || [])) {
+      moderation.push({ category: m.Name, confidence: m.Confidence });
+    }
+  } catch (e) { console.error('Moderation:', e.message); }
+
+  return { labels, faces, texts, moderation, timestamp: Date.now() };
+}
+
 function generateSegments(duration, count) {
   const segments = [];
   const step = duration / (count + 1);
@@ -224,4 +279,4 @@ function generateSegments(duration, count) {
   return segments;
 }
 
-module.exports = { analyzeVideo };
+module.exports = { analyzeVideo, analyzeFrame };

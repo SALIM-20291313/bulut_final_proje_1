@@ -64,6 +64,9 @@
           <a href="/api/videos/watch/<%= item.video._id %>" class="btn" style="background:#334155; padding:8px 16px; font-size:13px;">
             İzle
           </a>
+          <button class="btn btn-danger" onclick="deleteVideo('<%= item.video._id %>')" style="padding:8px 16px; font-size:13px;">
+            Sil
+          </button>
         </div>
       </div>
     </div>
@@ -71,6 +74,14 @@
 <% } %>
 
 <script>
+  async function deleteVideo(id) {
+    if (!confirm('Bu videoyu silmek istediğinize emin misiniz?')) return;
+    try {
+      await fetch('/api/videos/' + id, { method: 'DELETE' });
+      location.reload();
+    } catch (err) { alert('Hata: ' + err.message); }
+  }
+
   async function startQuickAnalysis(videoId) {
     if (!confirm('Bu video icin AWS Rekognition analizi baslatilsin mi?')) return;
     try {

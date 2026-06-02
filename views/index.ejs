@@ -1,7 +1,7 @@
 <%- include('header') %>
 <div class="hero">
   <h2>Video Akışı ve İşleme Uygulaması</h2>
-  <p>Bulut Bilişim Final Projesi - AWS Rekognition, Azure Video Indexer ve Google Cloud Video Intelligence API ile video analizi</p>
+  <p>Bulut Bilişim Final Projesi - AWS Rekognition ile gerçek zamanlı video analizi</p>
   <a href="/api/videos/upload" class="btn" style="font-size:16px; padding:14px 28px;">Video Yükle</a>
   <a href="/api/videos/dashboard" class="btn btn-success" style="font-size:16px; padding:14px 28px;">Videoları Gör</a>
 </div>
@@ -13,23 +13,23 @@
   </div>
   <div class="feature">
     <h3>Canlı Yayın (RTMP)</h3>
-    <p>OBS ile RTMP protokolü üzerinden canlı yayın yapın. HTTP-FLV ile izleyicilere ulaştırın.</p>
+    <p>RTMP protokolü ile canlı yayın yapın. FFmpeg ile videonuzu anında yayına çevirin, flv.js ile izleyin.</p>
   </div>
   <div class="feature">
     <h3>Nesne Tanıma</h3>
     <p>AWS Rekognition ile videodaki nesneleri, yüzleri ve metinleri otomatik tespit edin.</p>
   </div>
   <div class="feature">
-    <h3>Video Analizi</h3>
-    <p>Azure Video Indexer ile detaylı video analizi, transkripsiyon ve OCR özellikleri.</p>
+    <h3>Zaman Damgalı Analiz</h3>
+    <p>AWS Rekognition ile her tespitin videonun hangi saniyesinde olduğunu görün. Kronolojik sıralama.</p>
   </div>
   <div class="feature">
-    <h3>İçerik Etiketleme</h3>
-    <p>Google Cloud Video Intelligence ile otomatik etiketleme ve sahne değişim tespiti.</p>
+    <h3>Otomatik Etiketleme</h3>
+    <p>AWS Rekognition ile videodaki nesneleri otomatik etiketleyin. MinConfidence %75 filtresi ile kaliteli sonuç.</p>
   </div>
   <div class="feature">
     <h3>İçerik Moderasyonu</h3>
-    <p>Uygunsuz içerik tespiti ile güvenli video akışı sağlayın.</p>
+    <p>AWS Rekognition ile uygunsuz içerik tespiti ve güvenli video akışı.</p>
   </div>
 </div>
 <%- include('footer') %>

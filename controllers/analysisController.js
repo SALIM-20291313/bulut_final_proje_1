@@ -94,6 +94,7 @@ exports.deleteAnalysis = async (req, res) => {
 exports.allAnalysesPage = async (req, res) => {
   try {
     const videos = await Video.find().sort({ createdAt: -1 });
+    const uploadedVideos = videos.filter(v => !v.streamKey);
     const analyses = await Analysis.find().sort({ createdAt: -1 });
 
     const videoAnalysisMap = {};
@@ -105,7 +106,7 @@ exports.allAnalysesPage = async (req, res) => {
     }
 
     const videoList = [];
-    for (const v of videos) {
+    for (const v of uploadedVideos) {
       const vAnalyses = videoAnalysisMap[v._id] || [];
       videoList.push({
         video: v,
