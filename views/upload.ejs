@@ -1,0 +1,65 @@
+<%- include('header') %>
+<h2 style="margin-bottom:20px;">Video Yükle</h2>
+<div class="card">
+  <form id="uploadForm" action="/api/videos/upload" method="POST" enctype="multipart/form-data">
+    <label>Video Başlığı</label>
+    <input type="text" name="title" placeholder="Video başlığı girin" required>
+
+    <label>Açıklama</label>
+    <textarea name="description" rows="3" placeholder="Video açıklaması (opsiyonel)"></textarea>
+
+    <label>Video Dosyası</label>
+    <div class="upload-area" id="dropZone">
+      <p style="font-size:18px; margin-bottom:8px;">Videoyu sürükleyip bırakın veya seçin</p>
+      <p style="color:#94a3b8; font-size:13px;">MP4, WebM, AVI, MOV (Max: 500MB)</p>
+      <input type="file" name="video" id="videoFile" accept="video/*" style="display:none;" required>
+      <div id="fileInfo" style="margin-top:16px; color:#3b82f6; font-weight:500;"></div>
+    </div>
+
+    <div style="margin-top:20px;">
+      <button type="submit" class="btn" style="font-size:15px; padding:12px 24px;">Yükle</button>
+      <a href="/" class="btn" style="background:#334155; font-size:15px; padding:12px 24px;">İptal</a>
+    </div>
+  </form>
+  <div id="uploadStatus" style="margin-top:16px;"></div>
+</div>
+
+<script>
+  const dropZone = document.getElementById('dropZone');
+  const videoFile = document.getElementById('videoFile');
+  const fileInfo = document.getElementById('fileInfo');
+  const uploadStatus = document.getElementById('uploadStatus');
+
+  dropZone.addEventListener('click', () => videoFile.click());
+
+  dropZone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    dropZone.classList.add('dragover');
+  });
+
+  dropZone.addEventListener('dragleave', () => {
+    dropZone.classList.remove('dragover');
+  });
+
+  dropZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropZone.classList.remove('dragover');
+    videoFile.files = e.dataTransfer.files;
+    showFileInfo();
+  });
+
+  videoFile.addEventListener('change', showFileInfo);
+
+  function showFileInfo() {
+    if (videoFile.files.length > 0) {
+      const f = videoFile.files[0];
+      const sizeMB = (f.size / (1024 * 1024)).toFixed(1);
+      fileInfo.innerHTML = `Seçilen: <b>${f.name}</b> (${sizeMB} MB)`;
+    }
+  }
+
+  document.getElementById('uploadForm').addEventListener('submit', function(e) {
+    uploadStatus.innerHTML = '<p style="color:#f59e0b;">Yükleniyor, lütfen bekleyin...</p>';
+  });
+</script>
+<%- include('footer') %>

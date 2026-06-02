@@ -1,0 +1,57 @@
+<%- include('header') %>
+
+<% if (typeof stream !== 'undefined' && stream) { %>
+  <h2 style="margin-bottom:8px;"><%= stream.title %></h2>
+  <p style="color:#94a3b8; margin-bottom:20px;">Canlı Yayın - Stream Key: <b><%= stream.streamKey %></b></p>
+
+  <div class="card">
+    <div style="text-align:center; padding:20px;">
+      <p style="color:#f59e0b; font-size:18px; margin-bottom:16px;">Yayın şu anda aktif olmayabilir</p>
+      <p style="color:#94a3b8; margin-bottom:8px;">RTMP yayın adresi:</p>
+      <code style="background:#0f172a; padding:8px 16px; border-radius:6px; display:inline-block;">
+        rtmp://localhost:1935/live/<%= stream.streamKey %>
+      </code>
+      <p style="color:#94a3b8; margin-top:16px;">OBS Studio ile bu adrese yayın yapabilirsiniz</p>
+    </div>
+  </div>
+
+<% } else { %>
+  <h2 style="margin-bottom:20px;">Canlı Yayın Demo</h2>
+  <div class="card" style="text-align:center; padding:40px;">
+    <p style="color:#94a3b8; font-size:16px; margin-bottom:16px;">
+      Canlı yayın başlatmak için bir stream oluşturun veya mevcut bir yayını izleyin.
+    </p>
+    <button class="btn" onclick="createStream()" style="font-size:15px; padding:14px 28px;">Yeni Yayın Başlat</button>
+    <div id="streamInfo" style="margin-top:20px;"></div>
+  </div>
+<% } %>
+
+<div style="margin-top:20px;">
+  <a href="/" class="btn" style="background:#334155;">Ana Sayfa</a>
+</div>
+
+<script>
+  async function createStream() {
+    try {
+      const res = await fetch('/api/streams/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: 'Canlı Yayın - ' + new Date().toLocaleTimeString('tr-TR') })
+      });
+      const data = await res.json();
+      document.getElementById('streamInfo').innerHTML = `
+        <div class="card" style="max-width:600px; margin:0 auto; text-align:left;">
+          <h3>Yayın Oluşturuldu</h3>
+          <p><b>Stream Key:</b> ${data.stream.streamKey}</p>
+          <p><b>RTMP URL:</b> <code>${data.rtmpPublishUrl}/${data.stream.streamKey}</code></p>
+          <div style="margin-top:12px;">
+            <a href="${data.watchUrl}" class="btn btn-success">İzlemeye Git</a>
+          </div>
+        </div>
+      `;
+    } catch (err) {
+      document.getElementById('streamInfo').innerHTML = `<p style="color:#ef4444;">Hata: ${err.message}</p>`;
+    }
+  }
+</script>
+<%- include('footer') %>

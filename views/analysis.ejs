@@ -1,0 +1,262 @@
+<%- include('header') %>
+<h2 style="margin-bottom:8px;">Video Analizi: <%= video.title %></h2>
+<p style="color:#94a3b8; margin-bottom:20px;"><%= video.originalName %></p>
+
+<div class="card">
+  <h3>AWS Rekognition Video Analizi</h3>
+  <p style="color:#94a3b8; margin-bottom:12px;">
+    Video S3'e yüklenir, asenkron Rekognition Video API ile analiz edilir.
+    Zaman damgaları, bounding box kordinatları ve sahne geçişleri tespit edilir.
+    <br><small>Minimum güven eşiği: %75</small>
+  </p>
+
+  <button class="btn" onclick="startAnalysis()" style="background:#f90; color:#000; font-size:15px; padding:14px 28px;">
+    <b>AWS Rekognition</b> ile Kapsamlı Analiz Başlat
+  </button>
+
+  <div id="analysisStatus" style="margin-top:16px;"></div>
+</div>
+
+<% if (analyses && analyses.length > 0) { %>
+  <% analyses.forEach(function(a) { %>
+    <div class="card" style="margin-top:24px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; margin-bottom:12px;">
+        <h3>
+          <span class="badge badge-aws">AWS Rekognition</span>
+          <% if (a.status === 'completed') { %>
+            <span class="badge badge-completed">Tamamlandı</span>
+          <% } else if (a.status === 'processing') { %>
+            <span class="badge badge-processing">İşleniyor...</span>
+          <% } else if (a.status === 'failed') { %>
+            <span class="badge badge-failed">Başarısız</span>
+          <% } %>
+        </h3>
+        <div>
+          <span style="color:#64748b; font-size:12px; margin-right:10px;"><%= new Date(a.createdAt).toLocaleString('tr-TR') %></span>
+          <button class="btn btn-danger" onclick="deleteAnalysis('<%= a._id %>')" style="padding:4px 10px; font-size:12px;">Sil</button>
+        </div>
+      </div>
+
+      <% if (a.error) { %>
+        <p style="color:#ef4444; margin-bottom:12px;"><%= a.error %></p>
+      <% } %>
+
+      <% if (a.summary && Object.keys(a.summary).length > 0) { %>
+        <div class="result-section" style="background:#0f172a; border-radius:8px; padding:16px; margin-bottom:16px;">
+          <h4 style="color:#22c55e; margin-bottom:8px;">Analiz Özeti</h4>
+          <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap:12px;">
+            <div><b style="color:#3b82f6;"><%= a.summary.totalLabels %></b> etiket</div>
+            <div><b style="color:#3b82f6;"><%= a.summary.totalFaces %></b> yüz</div>
+            <div><b style="color:#3b82f6;"><%= a.summary.totalPersons %></b> kişi</div>
+            <div><b style="color:#3b82f6;"><%= a.summary.slotCount || 0 %></b> sahne</div>
+            <div><b style="color:#3b82f6;"><%= a.summary.totalTexts %></b> metin</div>
+          </div>
+          <% if (a.summary.dominantLabels && a.summary.dominantLabels.length > 0) { %>
+            <div style="margin-top:10px;">
+              <b style="color:#94a3b8;">Baskın etiketler:</b>
+              <% a.summary.dominantLabels.forEach(function(l) { %>
+                <span class="tag"><%= l %></span>
+              <% }); %>
+            </div>
+          <% } %>
+        </div>
+      <% } %>
+
+      <% if (a.segments && a.segments.length > 0) { %>
+        <div class="result-section">
+          <h4>Sahne Analizi (<%= a.segments.length %> geçiş)</h4>
+          <p style="color:#94a3b8; font-size:13px;">Bu video <%= a.summary.shotCount || a.segments.filter(s => s.type === 'sahne_degisimi').length %> farklı sahneden oluşuyor</p>
+          <div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:8px;">
+            <% a.segments.forEach(function(seg, i) { %>
+              <span class="tag" style="font-size:12px;">
+                <% if (seg.type === 'sahne_degisimi') { %>
+                  Sahne <%= seg.shotSegment?.index || i %>: <%= seg.startTimestamp %>s - <%= seg.endTimestamp %>s
+                <% } else { %>
+                  Geçiş: <%= seg.startTimestamp %>s
+                <% } %>
+              </span>
+            <% }); %>
+          </div>
+        </div>
+      <% } %>
+
+      <% if (a.labels && a.labels.length > 0) { %>
+        <div class="result-section">
+          <h4>Etiketler (Zaman Damgalı)</h4>
+          <table>
+            <tr><th>Etiket</th><th>Güven</th><th>Zaman</th><th>Kutu (x,y,w,h)</th><th>Üst Kategori</th></tr>
+            <% a.labels.slice(0, 20).forEach(function(l) { %>
+              <tr>
+                <td><b><%= l.name %></b></td>
+                <td><span style="color:#22c55e;">%<%= Number(l.confidence).toFixed(1) %></span></td>
+                <td><span class="badge" style="background:#334155;"><%= l.timestamp %>s</span></td>
+                <td style="font-size:11px; color:#94a3b8;">
+                  <% if (l.boundingBox) { %>
+                    <%= (l.boundingBox.left*100).toFixed(0) %>%,
+                    <%= (l.boundingBox.top*100).toFixed(0) %>%,
+                    <%= (l.boundingBox.width*100).toFixed(0) %>%,
+                    <%= (l.boundingBox.height*100).toFixed(0) %>%
+                  <% } else { %>-<% } %>
+                </td>
+                <td style="font-size:11px; color:#64748b;">
+                  <%= (l.parents || []).slice(0, 3).join(', ') || '-' %>
+                </td>
+              </tr>
+            <% }); %>
+          </table>
+          <% if (a.labels.length > 20) { %>
+            <p style="color:#64748b; font-size:12px; margin-top:8px;">+<%= a.labels.length - 20 %> etiket daha</p>
+          <% } %>
+        </div>
+      <% } %>
+
+      <% if (a.persons && a.persons.length > 0) { %>
+        <div class="result-section">
+          <h4>Kişi Takibi (<%= a.persons.length %> tespit)</h4>
+          <table>
+            <tr><th>Kişi #</th><th>Zaman</th><th>Yaş</th><th>Cinsiyet</th><th>Duygu</th><th>Kutu</th></tr>
+            <% a.persons.slice(0, 10).forEach(function(p) { %>
+              <tr>
+                <td><span class="badge" style="background:#3b82f6;">#<%= p.index %></span></td>
+                <td><%= p.timestamp %>s</td>
+                <td><%= p.face?.ageRange?.low || '?' %>-<%= p.face?.ageRange?.high || '?' %></td>
+                <td><%= p.face?.gender?.value || '-' %></td>
+                <td><%= (p.face?.emotions || []).map(e => e.type).join(', ') || '-' %></td>
+                <td style="font-size:11px;">
+                  <%= p.boundingBox ? (p.boundingBox.left*100).toFixed(0) + '%' : '-' %>
+                </td>
+              </tr>
+            <% }); %>
+          </table>
+        </div>
+      <% } %>
+
+      <% if (a.faces && a.faces.length > 0) { %>
+        <div class="result-section">
+          <h4>Yüz Analizi (<%= a.faces.length %> tespit)</h4>
+          <table>
+            <tr><th>Zaman</th><th>Yaş</th><th>Cinsiyet</th><th>Duygular</th><th>Poz (roll/yaw/pitch)</th><th>Güven</th></tr>
+            <% a.faces.slice(0, 10).forEach(function(f) { %>
+              <tr>
+                <td><%= f.timestamp %>s</td>
+                <td><%= f.ageRange?.low || '?' %>-<%= f.ageRange?.high || '?' %></td>
+                <td><%= f.gender?.value || '-' %> (%<%= Number(f.gender?.confidence || 0).toFixed(1) %>)</td>
+                <td style="font-size:12px;">
+                  <% (f.emotions || []).forEach(function(e) { %>
+                    <span class="tag"><%= e.type %> (%<%= Number(e.confidence).toFixed(1) %>)</span>
+                  <% }); %>
+                </td>
+                <td style="font-size:11px;">
+                  <%= f.pose ? Number(f.pose.roll).toFixed(1) + '/' + Number(f.pose.yaw).toFixed(1) + '/' + Number(f.pose.pitch).toFixed(1) : '-' %>
+                </td>
+                <td style="color:#22c55e;">%<%= Number(f.confidence).toFixed(1) %></td>
+              </tr>
+            <% }); %>
+          </table>
+        </div>
+      <% } %>
+
+      <% if (a.textDetections && a.textDetections.length > 0) { %>
+        <div class="result-section">
+          <h4>Metin Tespiti - OCR (<%= a.textDetections.length %> metin)</h4>
+          <% a.textDetections.forEach(function(t) { %>
+            <span class="tag" style="font-size:13px;">
+              "<%= t.text %>"
+              <span style="color:#22c55e;">%<%= Number(t.confidence).toFixed(1) %></span>
+              <span style="color:#64748b;">[<%= t.timestamp %>s]</span>
+            </span>
+          <% }); %>
+        </div>
+      <% } %>
+
+      <% if (a.moderation && a.moderation.length > 0) { %>
+        <div class="result-section">
+          <h4>İçerik Moderasyonu</h4>
+          <% a.moderation.forEach(function(m) { %>
+            <span class="tag">
+              <%= m.category %>: %<%= Number(m.confidence).toFixed(1) %>
+              <span style="color:#64748b;">[<%= m.timestamp %>s]</span>
+            </span>
+          <% }); %>
+        </div>
+      <% } %>
+
+      <p style="color:#64748b; font-size:12px; margin-top:16px; border-top:1px solid #334155; padding-top:12px;">
+        İşlem süresi: <%= Math.round(a.processingTimeMs / 1000) %>s
+        &bull; Tarih: <%= new Date(a.createdAt).toLocaleString('tr-TR') %>
+      </p>
+    </div>
+  <% }); %>
+<% } else { %>
+  <div class="card" style="text-align:center; margin-top:20px;">
+    <p style="color:#94a3b8;">Henüz analiz yapılmadı.</p>
+  </div>
+<% } %>
+
+<div style="margin-top:20px;">
+  <a href="/api/videos/watch/<%= video._id %>" class="btn" style="background:#334155;">Videoya Dön</a>
+  <a href="/api/videos/dashboard" class="btn" style="background:#334155;">Listeye Dön</a>
+</div>
+
+<script>
+  async function deleteAnalysis(id) {
+    if (!confirm('Bu analizi silmek istediginize emin misiniz?')) return;
+    try {
+      const res = await fetch('/api/analysis/delete/' + id, { method: 'DELETE' });
+      if (res.ok) location.reload();
+      else alert('Silme hatasi');
+    } catch (err) {
+      alert('Hata: ' + err.message);
+    }
+  }
+
+  async function startAnalysis() {
+    const statusDiv = document.getElementById('analysisStatus');
+    statusDiv.innerHTML = '<p style="color:#f59e0b;">AWS Rekognition Video API ile analiz başlatılıyor...<br><small>Video S3\'e yükleniyor, asenkron analiz başlatılıyor...</small></p>';
+
+    try {
+      const res = await fetch('/api/analysis/<%= video._id %>/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider: 'aws' })
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        statusDiv.innerHTML = '<p style="color:#ef4444;">Hata: ' + data.error + '</p>';
+        return;
+      }
+
+      statusDiv.innerHTML = '<p style="color:#f59e0b;">Analiz devam ediyor... <span id="pollStatus">bekleniyor</span></p>';
+
+      let attempts = 0;
+      const pollInterval = setInterval(async () => {
+        attempts++;
+        try {
+          const statusRes = await fetch('/api/analysis/<%= video._id %>/status');
+          const statusData = await statusRes.json();
+          document.getElementById('pollStatus').textContent =
+            statusData.status === 'processing' ? 'işleniyor (' + (attempts * 3) + 's)...' :
+            statusData.status === 'completed' ? 'tamamlandı!' :
+            statusData.status === 'failed' ? 'başarısız oldu' : statusData.status;
+
+          if (statusData.status === 'completed' || statusData.status === 'failed') {
+            clearInterval(pollInterval);
+            if (statusData.status === 'completed') {
+              statusDiv.innerHTML = '<p style="color:#22c55e;">Analiz tamamlandı! Sayfa yenileniyor...</p>';
+            } else {
+              statusDiv.innerHTML = '<p style="color:#ef4444;">Analiz başarısız oldu. Sayfa yenileniyor...</p>';
+            }
+            setTimeout(() => location.reload(), 1500);
+          }
+        } catch (e) {
+          clearInterval(pollInterval);
+          statusDiv.innerHTML = '<p style="color:#ef4444;">Durum sorgulanamadı: ' + e.message + '</p>';
+        }
+      }, 3000);
+    } catch (err) {
+      statusDiv.innerHTML = '<p style="color:#ef4444;">Bağlantı hatası: ' + err.message + '</p>';
+    }
+  }
+</script>
+<%- include('footer') %>

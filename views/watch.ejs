@@ -1,0 +1,42 @@
+<%- include('header') %>
+<h2 style="margin-bottom:8px;"><%= video.title %></h2>
+<p style="color:#94a3b8; margin-bottom:20px;"><%= video.description || 'Açıklama yok' %></p>
+
+<div class="card">
+  <% if (video.streamKey) { %>
+    <p style="color:#f59e0b; margin-bottom:12px;">Bu bir canlı yayındır. Yayın akışı için lütfen canlı yayın sayfasını ziyaret edin.</p>
+    <a href="/api/streams/watch/<%= video._id %>" class="btn btn-warning">Canlı Yayını İzle</a>
+  <% } else { %>
+    <video controls style="width:100%; border-radius:10px;">
+      <source src="/uploads/<%= video.filename %>" type="<%= video.mimeType %>">
+      Tarayıcınız video oynatmayı desteklemiyor.
+    </video>
+  <% } %>
+
+  <div style="margin-top:20px; display:flex; gap:10px; flex-wrap:wrap;">
+    <p style="color:#64748b; font-size:13px;">
+      <b>Dosya:</b> <%= video.originalName %> &bull;
+      <b>Boyut:</b> <%= (video.size / (1024*1024)).toFixed(1) %> MB &bull;
+      <b>Durum:</b> <%= video.status %>
+    </p>
+  </div>
+
+  <div style="margin-top:16px;">
+    <a href="/api/analysis/<%= video._id %>" class="btn btn-warning">Video Analizi Yap</a>
+    <a href="/api/videos/dashboard" class="btn" style="background:#334155;">Geri Dön</a>
+    <button class="btn btn-danger" onclick="deleteVideo('<%= video._id %>')">Sil</button>
+  </div>
+</div>
+
+<script>
+  async function deleteVideo(id) {
+    if (!confirm('Bu videoyu silmek istediğinize emin misiniz?')) return;
+    try {
+      await fetch('/api/videos/' + id, { method: 'DELETE' });
+      window.location.href = '/api/videos/dashboard';
+    } catch (err) {
+      alert('Silme hatası: ' + err.message);
+    }
+  }
+</script>
+<%- include('footer') %>

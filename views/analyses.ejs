@@ -1,0 +1,94 @@
+<%- include('header') %>
+<h2 style="margin-bottom:20px;">Analizler</h2>
+
+<div class="card" style="margin-bottom:24px;">
+  <form method="GET" action="/api/analysis" style="display:flex; gap:10px; align-items:center;">
+    <input type="text" name="search" placeholder="Video ismi ile ara..." value="<%= search %>" style="margin:0; flex:1; max-width:400px;">
+    <button type="submit" class="btn">Ara</button>
+    <% if (search) { %>
+      <a href="/api/analysis" class="btn" style="background:#334155;">Temizle</a>
+    <% } %>
+  </form>
+</div>
+
+<% if (videoList.length === 0) { %>
+  <div class="card" style="text-align:center; padding:40px;">
+    <p style="color:#94a3b8; font-size:16px;">
+      <% if (search) { %>
+        "<%= search %>" ile eşleşen video bulunamadı.
+      <% } else { %>
+        Henüz analiz yapılmadı. Önce bir video yükleyin.
+      <% } %>
+    </p>
+    <a href="/api/videos/upload" class="btn" style="margin-top:12px;">Video Yükle</a>
+  </div>
+<% } else { %>
+  <% videoList.forEach(function(item) { %>
+    <div class="card">
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap;">
+        <div style="flex:1; min-width:250px;">
+          <h3 style="margin-bottom:4px;">
+            <%= item.video.title %>
+            <% if (item.latestStatus === 'completed') { %>
+              <span class="badge badge-completed">Analiz var</span>
+            <% } else if (item.latestStatus === 'failed') { %>
+              <span class="badge badge-failed">Başarısız</span>
+            <% } else if (item.latestStatus === 'processing') { %>
+              <span class="badge badge-processing">İşleniyor</span>
+            <% } else { %>
+              <span class="badge" style="background:#334155;">Analiz yok</span>
+            <% } %>
+          </h3>
+          <p style="color:#94a3b8; font-size:13px; margin:4px 0;">
+            <%= item.video.originalName %>
+            &bull; <%= (item.video.size / (1024*1024)).toFixed(1) %> MB
+          </p>
+          <p style="color:#64748b; font-size:12px;">
+            <b><%= item.analysisCount %></b> analiz
+            <% if (item.latestDate) { %>
+              &bull; Son analiz: <%= new Date(item.latestDate).toLocaleString('tr-TR') %>
+            <% } %>
+          </p>
+        </div>
+        <div style="display:flex; gap:8px; align-items:center; margin-top:8px;">
+          <a href="/api/analysis/<%= item.video._id %>" class="btn" style="padding:8px 16px; font-size:13px;">
+            <% if (item.hasCompleted) { %>
+              Sonuçları Gör
+            <% } else { %>
+              Analiz Sayfası
+            <% } %>
+          </a>
+          <button class="btn btn-warning" onclick="startQuickAnalysis('<%= item.video._id %>')" style="padding:8px 16px; font-size:13px;">
+            Analiz Et
+          </button>
+          <a href="/api/videos/watch/<%= item.video._id %>" class="btn" style="background:#334155; padding:8px 16px; font-size:13px;">
+            İzle
+          </a>
+        </div>
+      </div>
+    </div>
+  <% }); %>
+<% } %>
+
+<script>
+  async function startQuickAnalysis(videoId) {
+    if (!confirm('Bu video icin AWS Rekognition analizi baslatilsin mi?')) return;
+    try {
+      const res = await fetch('/api/analysis/' + videoId + '/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider: 'aws' })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert('Analiz baslatildi! Sonuc sayfasina yonlendiriliyorsunuz...');
+        window.location.href = '/api/analysis/' + videoId;
+      } else {
+        alert('Hata: ' + (data.error || 'Bilinmeyen hata'));
+      }
+    } catch (err) {
+      alert('Baglanti hatasi: ' + err.message);
+    }
+  }
+</script>
+<%- include('footer') %>

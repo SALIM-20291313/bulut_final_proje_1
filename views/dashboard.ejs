@@ -1,0 +1,54 @@
+<%- include('header') %>
+<h2 style="margin-bottom:20px;">Videolar</h2>
+
+<% if (videos.length === 0) { %>
+  <div class="card" style="text-align:center; padding:40px;">
+    <p style="color:#94a3b8; font-size:16px;">Henüz video yüklenmedi.</p>
+    <a href="/api/videos/upload" class="btn" style="margin-top:16px;">İlk Videoyu Yükle</a>
+  </div>
+<% } else { %>
+  <div class="grid">
+    <% videos.forEach(function(video) { %>
+      <div class="card">
+        <h3><%= video.title %></h3>
+        <p style="color:#94a3b8; font-size:13px; margin:8px 0;">
+          <%= video.originalName %> &bull; <%= (video.size / (1024*1024)).toFixed(1) %> MB
+        </p>
+        <p style="margin:8px 0;">
+          <% if (video.status === 'ready') { %>
+            <span class="badge badge-ready">Hazır</span>
+          <% } else if (video.status === 'processing') { %>
+            <span class="badge badge-processing">İşleniyor</span>
+          <% } else if (video.status === 'completed') { %>
+            <span class="badge badge-completed">Analiz Tamam</span>
+          <% } else if (video.status === 'failed') { %>
+            <span class="badge badge-failed">Hata</span>
+          <% } else { %>
+            <span class="badge"><%= video.status %></span>
+          <% } %>
+        </p>
+        <p style="color:#64748b; font-size:12px; margin:8px 0;">
+          <%= new Date(video.createdAt).toLocaleString('tr-TR') %>
+        </p>
+        <div style="margin-top:12px;">
+          <a href="/api/videos/watch/<%= video._id %>" class="btn">İzle</a>
+          <a href="/api/analysis/<%= video._id %>" class="btn btn-warning">Analiz Et</a>
+          <button class="btn btn-danger" onclick="deleteVideo('<%= video._id %>')">Sil</button>
+        </div>
+      </div>
+    <% }); %>
+  </div>
+<% } %>
+
+<script>
+  async function deleteVideo(id) {
+    if (!confirm('Bu videoyu silmek istediğinize emin misiniz?')) return;
+    try {
+      await fetch('/api/videos/' + id, { method: 'DELETE' });
+      location.reload();
+    } catch (err) {
+      alert('Silme hatası: ' + err.message);
+    }
+  }
+</script>
+<%- include('footer') %>
