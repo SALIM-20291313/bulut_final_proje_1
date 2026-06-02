@@ -32,6 +32,7 @@ router.get('/upload', videoController.uploadPage);
 router.get('/dashboard', videoController.dashboard);
 router.get('/watch/:id', videoController.watchPage);
 router.post('/upload', upload.single('video'), videoController.upload);
+router.post('/youtube', videoController.youtubeUpload);
 router.get('/', videoController.getAll);
 router.get('/:id', videoController.getOne);
 router.delete('/:id', videoController.delete);

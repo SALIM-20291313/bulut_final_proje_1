@@ -1,4 +1,7 @@
 require('dotenv').config();
+const connectDB = require('./config/db');
+connectDB();
+
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
@@ -78,7 +81,7 @@ io.on('connection', (socket) => {
       ffmpeg.kill();
     });
 
-    socket.emit('live:ready', { message: 'Stream basladi' });
+    socket.emit('live:ready', { message: 'Stream basladi', streamKey });
   });
 });
 

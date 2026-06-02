@@ -14,6 +14,7 @@ exports.analyzePage = async (req, res) => {
 };
 
 exports.startAnalysis = async (req, res) => {
+  let analysisId = null;
   try {
     const video = await Video.findById(req.params.videoId);
     if (!video) return res.status(404).json({ error: 'Video bulunamadı' });
@@ -24,8 +25,8 @@ exports.startAnalysis = async (req, res) => {
       provider,
       status: 'processing'
     });
-    video.status = 'processing';
-    await video.save();
+    analysisId = analysis._id;
+    await Video.updateOne({ _id: video._id }, { $set: { status: 'processing' } });
 
     res.json({ message: 'Analiz başlatıldı, işleniyor...', analysisId: analysis._id });
 
@@ -43,23 +44,20 @@ exports.startAnalysis = async (req, res) => {
     analysis.processingTimeMs = results.processingTimeMs || 0;
     await analysis.save();
 
-    video.status = 'completed';
-    await video.save();
+    await Video.updateOne({ _id: video._id }, { $set: { status: 'completed' } });
   } catch (err) {
     console.error('Analiz hatasi:', err.message);
     console.error('Stack:', err.stack);
-    const failed = await Analysis.findOne({ videoId: req.params.videoId, status: 'processing' });
-    if (failed) {
-      failed.status = 'failed';
-      failed.error = err.message || JSON.stringify(err);
-      await failed.save();
+    if (analysisId) {
+      const failed = await Analysis.findById(analysisId);
+      if (failed) {
+        failed.status = 'failed';
+        failed.error = err.message || JSON.stringify(err);
+        await failed.save();
+      }
     }
 
-    const video = await Video.findById(req.params.videoId);
-    if (video) {
-      video.status = 'failed';
-      await video.save();
-    }
+    await Video.updateOne({ _id: req.params.videoId }, { $set: { status: 'failed' } });
   }
 };
 

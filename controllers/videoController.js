@@ -1,6 +1,9 @@
 const Video = require('../models/Video');
 const fs = require('fs');
 const path = require('path');
+const ytdl = require('@distube/ytdl-core');
+const youtubedl = require('youtube-dl-exec');
+const { v4: uuidv4 } = require('uuid');
 
 exports.uploadPage = (req, res) => {
   res.render('upload', { title: 'Video Yükle' });
@@ -45,6 +48,54 @@ exports.upload = async (req, res) => {
     res.redirect(`/api/videos/watch/${video._id}`);
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+};
+
+exports.youtubeUpload = async (req, res) => {
+  try {
+    const { youtubeUrl } = req.body;
+    if (!youtubeUrl) {
+      return res.status(400).json({ error: 'Geçerli bir YouTube URL si giriniz.' });
+    }
+
+    const filename = `${uuidv4()}.mp4`;
+    const filePath = path.join(__dirname, '..', 'uploads', filename);
+
+    // Get info
+    const info = await youtubedl(youtubeUrl, {
+      dumpSingleJson: true,
+      noCheckCertificates: true,
+      noWarnings: true,
+      preferFreeFormats: true
+    });
+
+    const title = info.title || 'YouTube Video';
+    const description = req.body.description || (info.description ? info.description.substring(0, 500) : '');
+
+    // Download video
+    await youtubedl(youtubeUrl, {
+      output: `uploads/${filename}`, // Use relative path to avoid spaces in absolute path breaking cmd.exe
+      format: 'best[ext=mp4]', // Muxed format (video+audio) so ffmpeg is not required on host
+      noCheckCertificates: true,
+      noWarnings: true
+    });
+
+    const stats = fs.statSync(filePath);
+    const video = await Video.create({
+      title: title,
+      description: description,
+      filename: filename,
+      originalName: title + '.mp4',
+      mimeType: 'video/mp4',
+      size: stats.size,
+      status: 'ready'
+    });
+    
+    res.redirect(`/api/videos/watch/${video._id}`);
+
+  } catch (err) {
+    console.error('Video indirme hatasi:', err);
+    res.status(500).json({ error: 'Video indirilirken hata oluştu. YouTube kısıtlamalarına takılmış olabilirsiniz.' });
   }
 };
 

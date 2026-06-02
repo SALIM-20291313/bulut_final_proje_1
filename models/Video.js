@@ -1,6 +1,6 @@
-const db = require('../lib/db');
+const mongoose = require('mongoose');
 
-const videoSchema = {
+const videoSchema = new mongoose.Schema({
   title: { type: String, required: true },
   description: { type: String, default: '' },
   filename: { type: String, required: true },
@@ -13,6 +13,6 @@ const videoSchema = {
   streamKey: { type: String, default: null },
   status: { type: String, default: 'uploading' },
   cloudProvider: { type: String, default: 'local' }
-};
+}, { timestamps: true });
 
-module.exports = db.createModel('Video', videoSchema);
+module.exports = mongoose.model('Video', videoSchema);

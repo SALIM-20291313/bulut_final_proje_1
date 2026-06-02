@@ -1,5 +1,49 @@
 <%- include('header') %>
 
+<% if (typeof stream !== 'undefined' && stream) { %>
+  <h2 style="margin-bottom:8px;"><%= stream.title %></h2>
+  <p style="color:#94a3b8; margin-bottom:20px;">Canlı Yayın - Stream Key: <b><%= stream.streamKey %></b></p>
+
+  <div class="card" style="text-align:center;">
+    <video id="videoPlayer" controls autoplay muted style="width:100%; max-width:800px; border-radius:10px; background:#000;"></video>
+    <p id="streamStatus" style="color:#94a3b8; margin-top:8px; font-size:13px;">Yayına bağlanıyor...</p>
+    <div style="margin-top:16px; font-size:12px; color:#64748b;">
+      RTMP: <code style="color:#3b82f6;">rtmp://localhost:1935/live/<%= stream.streamKey %></code>
+      &nbsp; FLV: <code style="color:#3b82f6;">http://localhost:<%= httpPort %>/live/<%= stream.streamKey %>.flv</code>
+    </div>
+    <div style="margin-top:12px;">
+      <button class="btn btn-danger" onclick="stopStream('<%= stream._id %>')">Yayını Durdur</button>
+      <a href="/" class="btn" style="background:#334155;">Ana Sayfa</a>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/flv.js@1.6.2/dist/flv.min.js"></script>
+  <script>
+    if (flvjs.isSupported()) {
+      const player = flvjs.createPlayer({
+        type: 'flv',
+        url: 'http://localhost:<%= httpPort %>/live/<%= stream.streamKey %>.flv',
+        isLive: true
+      });
+      player.attachMediaElement(document.getElementById('videoPlayer'));
+      player.load();
+      player.play().then(() => {
+        document.getElementById('streamStatus').textContent = 'Yayın aktif';
+        document.getElementById('streamStatus').style.color = '#22c55e';
+      }).catch(() => {
+        document.getElementById('streamStatus').textContent = 'Yayın bekleniyor...';
+        document.getElementById('streamStatus').style.color = '#f59e0b';
+      });
+    }
+    async function stopStream(id) {
+      if (!confirm('Yayını durdur?')) return;
+      try { await fetch('/api/streams/' + id, { method: 'DELETE' }); window.location.href = '/api/streams/watch/demo'; }
+      catch (err) { alert('Hata: ' + err.message); }
+    }
+  </script>
+
+<% } else { %>
+
 <h2 style="margin-bottom:8px;">Canlı Kamera & Gerçek Zamanlı Analiz</h2>
 <p style="color:#94a3b8; margin-bottom:20px;">Web kamerası açın, canlı yayın başlatın ve AWS Rekognition ile anlık analiz yapın</p>
 
@@ -108,15 +152,15 @@
       socket = io();
       socket.emit('live:start', { streamKey });
 
-      socket.on('live:ready', () => {
-        btnStream.textContent = 'Yayını Durdur';
-        btnStream.style.background = '#ef4444';
-        streamInfo.innerHTML = `
-          <span style="color:#22c55e;">Yayın aktif!</span><br>
-          <span style="font-size:11px;">İzleme: <a href="/api/streams/watch/${data.stream.id}" target="_blank" style="color:#3b82f6;">/api/streams/watch/${data.stream.id}</a></span>
-        `;
-        startSendingChunks();
-      });
+  socket.on('live:ready', (data) => {
+    btnStream.textContent = 'Yayını Durdur';
+    btnStream.style.background = '#ef4444';
+    streamInfo.innerHTML = `
+      <span style="color:#22c55e;">Yayın aktif!</span><br>
+      <span style="font-size:11px;">İzleme: <a href="/api/streams/watch/${data.streamId}" target="_blank" style="color:#3b82f6;">/api/streams/watch/${data.streamId}</a></span>
+    `;
+    startSendingChunks(data.streamId);
+  });
     } catch (err) {
       alert('Yayin hatasi: ' + err.message);
     }
@@ -245,4 +289,5 @@
     if (mediaStream) mediaStream.getTracks().forEach(t => t.stop());
   });
 </script>
+<% } %>
 <%- include('footer') %>

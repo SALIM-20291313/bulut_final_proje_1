@@ -1,6 +1,13 @@
 <%- include('header') %>
-<h2 style="margin-bottom:20px;">Video Yükle</h2>
-<div class="card">
+<h2 style="margin-bottom:20px; font-weight: 700; color: #f8fafc;">Video Yükle</h2>
+
+<div class="tabs" style="margin-bottom: 24px; display: flex; gap: 12px;">
+  <button id="btnLocal" class="btn" style="flex: 1;" onclick="switchTab('local')">Yerel Dosya Yükle</button>
+  <button id="btnYoutube" class="btn" style="flex: 1; background: rgba(30, 41, 59, 0.6); box-shadow: none;" onclick="switchTab('youtube')">YouTube'dan İndir</button>
+</div>
+
+<!-- Local File Upload Section -->
+<div class="card" id="localSection">
   <form id="uploadForm" action="/api/videos/upload" method="POST" enctype="multipart/form-data">
     <label>Video Başlığı</label>
     <input type="text" name="title" placeholder="Video başlığı girin" required>
@@ -9,41 +16,87 @@
     <textarea name="description" rows="3" placeholder="Video açıklaması (opsiyonel)"></textarea>
 
     <label>Video Dosyası</label>
-    <div class="upload-area" id="dropZone">
-      <p style="font-size:18px; margin-bottom:8px;">Videoyu sürükleyip bırakın veya seçin</p>
-      <p style="color:#94a3b8; font-size:13px;">MP4, WebM, AVI, MOV (Max: 500MB)</p>
+    <div class="upload-area" id="dropZone" style="border: 2px dashed rgba(255,255,255,0.2); border-radius: 12px; padding: 40px 20px; text-align: center; cursor: pointer; transition: all 0.3s ease; background: rgba(15, 23, 42, 0.4);">
+      <p style="font-size:18px; margin-bottom:8px; font-weight: 600; color: #cbd5e1;">Videoyu sürükleyip bırakın veya seçin</p>
+      <p style="color:#64748b; font-size:13px;">MP4, WebM, AVI, MOV (Max: 500MB)</p>
       <input type="file" name="video" id="videoFile" accept="video/*" style="display:none;" required>
-      <div id="fileInfo" style="margin-top:16px; color:#3b82f6; font-weight:500;"></div>
+      <div id="fileInfo" style="margin-top:16px; color:#60a5fa; font-weight:500;"></div>
     </div>
 
-    <div style="margin-top:20px;">
-      <button type="submit" class="btn" style="font-size:15px; padding:12px 24px;">Yükle</button>
-      <a href="/" class="btn" style="background:#334155; font-size:15px; padding:12px 24px;">İptal</a>
+    <div style="margin-top:24px; display: flex; gap: 12px;">
+      <button type="submit" class="btn" style="font-size:15px; padding:12px 28px;">Yükle</button>
+      <a href="/" class="btn" style="background:rgba(255,255,255,0.1); box-shadow: none; font-size:15px; padding:12px 28px;">İptal</a>
     </div>
   </form>
   <div id="uploadStatus" style="margin-top:16px;"></div>
 </div>
 
+<!-- YouTube Upload Section -->
+<div class="card" id="youtubeSection" style="display: none;">
+  <form id="youtubeForm" action="/api/videos/youtube" method="POST">
+    <label>YouTube Video Linki</label>
+    <input type="url" name="youtubeUrl" placeholder="https://www.youtube.com/watch?v=..." required>
+
+    <label>Açıklama (Opsiyonel)</label>
+    <textarea name="description" rows="3" placeholder="Boş bırakırsanız YouTube'daki video açıklamasını otomatik çeker."></textarea>
+
+    <div style="margin-top:24px; display: flex; gap: 12px;">
+      <button type="submit" class="btn btn-danger" style="font-size:15px; padding:12px 28px;">Videoyu İndir ve Ekle</button>
+      <a href="/" class="btn" style="background:rgba(255,255,255,0.1); box-shadow: none; font-size:15px; padding:12px 28px;">İptal</a>
+    </div>
+  </form>
+  <div id="youtubeStatus" style="margin-top:16px;"></div>
+</div>
+
 <script>
+  // Tab Switching Logic
+  function switchTab(tab) {
+    const localSection = document.getElementById('localSection');
+    const youtubeSection = document.getElementById('youtubeSection');
+    const btnLocal = document.getElementById('btnLocal');
+    const btnYoutube = document.getElementById('btnYoutube');
+
+    if (tab === 'local') {
+      localSection.style.display = 'block';
+      youtubeSection.style.display = 'none';
+      btnLocal.style.background = 'linear-gradient(135deg, #3b82f6, #6366f1)';
+      btnLocal.style.boxShadow = '0 4px 14px 0 rgba(99, 102, 241, 0.39)';
+      btnYoutube.style.background = 'rgba(30, 41, 59, 0.6)';
+      btnYoutube.style.boxShadow = 'none';
+    } else {
+      localSection.style.display = 'none';
+      youtubeSection.style.display = 'block';
+      btnLocal.style.background = 'rgba(30, 41, 59, 0.6)';
+      btnLocal.style.boxShadow = 'none';
+      btnYoutube.style.background = 'linear-gradient(135deg, #ef4444, #b91c1c)';
+      btnYoutube.style.boxShadow = '0 4px 14px 0 rgba(239, 68, 68, 0.39)';
+    }
+  }
+
+  // Drag & Drop Logic for Local File
   const dropZone = document.getElementById('dropZone');
   const videoFile = document.getElementById('videoFile');
   const fileInfo = document.getElementById('fileInfo');
   const uploadStatus = document.getElementById('uploadStatus');
+  const youtubeStatus = document.getElementById('youtubeStatus');
 
   dropZone.addEventListener('click', () => videoFile.click());
 
   dropZone.addEventListener('dragover', (e) => {
     e.preventDefault();
-    dropZone.classList.add('dragover');
+    dropZone.style.borderColor = '#60a5fa';
+    dropZone.style.background = 'rgba(96, 165, 250, 0.1)';
   });
 
   dropZone.addEventListener('dragleave', () => {
-    dropZone.classList.remove('dragover');
+    dropZone.style.borderColor = 'rgba(255,255,255,0.2)';
+    dropZone.style.background = 'rgba(15, 23, 42, 0.4)';
   });
 
   dropZone.addEventListener('drop', (e) => {
     e.preventDefault();
-    dropZone.classList.remove('dragover');
+    dropZone.style.borderColor = 'rgba(255,255,255,0.2)';
+    dropZone.style.background = 'rgba(15, 23, 42, 0.4)';
     videoFile.files = e.dataTransfer.files;
     showFileInfo();
   });
@@ -59,7 +112,38 @@
   }
 
   document.getElementById('uploadForm').addEventListener('submit', function(e) {
-    uploadStatus.innerHTML = '<p style="color:#f59e0b;">Yükleniyor, lütfen bekleyin...</p>';
+    const btn = this.querySelector('button[type="submit"]');
+    btn.disabled = true;
+    btn.style.opacity = '0.7';
+    uploadStatus.innerHTML = `
+      <div style="margin-top: 20px; text-align: center;">
+        <p style="color:#fbbf24; font-weight: 500; font-size: 15px; margin-bottom: 8px;">🚀 Video Yükleniyor, Lütfen Bekleyin...</p>
+        <div style="width: 100%; background: rgba(255,255,255,0.1); border-radius: 8px; overflow: hidden; height: 8px; position: relative;">
+          <div style="height: 100%; background: linear-gradient(90deg, #3b82f6, #6366f1); border-radius: 8px; position: absolute; animation: loadBar 1.5s infinite ease-in-out;"></div>
+        </div>
+      </div>
+      <style>
+        @keyframes loadBar {
+          0% { left: -50%; width: 50%; }
+          50% { left: 25%; width: 80%; }
+          100% { left: 100%; width: 50%; }
+        }
+      </style>
+    `;
+  });
+
+  document.getElementById('youtubeForm').addEventListener('submit', function(e) {
+    const btn = this.querySelector('button[type="submit"]');
+    btn.disabled = true;
+    btn.style.opacity = '0.7';
+    youtubeStatus.innerHTML = `
+      <div style="margin-top: 20px; text-align: center;">
+        <p style="color:#fbbf24; font-weight: 500; font-size: 15px; margin-bottom: 8px;">☁️ YouTube'dan İndiriliyor, Videonun Uzunluğuna Göre Sürebilir...</p>
+        <div style="width: 100%; background: rgba(255,255,255,0.1); border-radius: 8px; overflow: hidden; height: 8px; position: relative;">
+          <div style="height: 100%; background: linear-gradient(90deg, #ef4444, #b91c1c); border-radius: 8px; position: absolute; animation: loadBar 1.5s infinite ease-in-out;"></div>
+        </div>
+      </div>
+    `;
   });
 </script>
 <%- include('footer') %>
