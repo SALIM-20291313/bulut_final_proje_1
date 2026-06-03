@@ -65,10 +65,10 @@ Bu proje, **gerçek zamanlı video akışı yönetimi** ve **bulut tabanlı vide
          ▼                    ▼                      ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                          DATA LAYER                                      │
-│  ┌──────────────┐   ┌──────────────┐   ┌──────────────┐                │
-│  │  PostgreSQL  │   │   MongoDB    │   │ Cloud Storage │                │
-│  │ (User/Rel.)  │   │ (Metadata)   │   │ (S3/Blob/GCS)│                │
-│  └──────────────┘   └──────────────┘   └──────────────┘                │
+│  ┌──────────────┐   ┌──────────────┐                                   │
+│  │   MongoDB    │   │ Cloud Storage │                                   │
+│  │ (Metadata)   │   │ (S3/Blob/GCS)│                                   │
+│  └──────────────┘   └──────────────┘                                   │
 └─────────────────────────────────────────────────────────────────────────┘
                                   │
                                   ▼
@@ -94,7 +94,7 @@ Bu proje, **gerçek zamanlı video akışı yönetimi** ve **bulut tabanlı vide
            [Cloud Storage]              [Core Backend API]
                     │                             │
                     ▼                             ▼
-           [Video Processor]            [PostgreSQL / MongoDB]
+           [Video Processor]            [MongoDB]
                     │
                     ▼
            [Cloud AI API]
@@ -134,7 +134,6 @@ Bu proje, **gerçek zamanlı video akışı yönetimi** ve **bulut tabanlı vide
 ### Veritabanı
 | Teknoloji    | Kullanım Alanı                        |
 |--------------|---------------------------------------|
-| PostgreSQL   | Kullanıcı, roller, ilişkisel veriler  |
 | MongoDB      | Video metadata, analiz sonuçları      |
 
 ### Bulut Platformları
@@ -189,65 +188,30 @@ Bu proje, **gerçek zamanlı video akışı yönetimi** ve **bulut tabanlı vide
 
 ```
 Proje 1 - Video Akışı ve İşleme Uygulaması/
-├── README.md                         # Proje dokümantasyonu
-├── docker-compose.yml                # Tüm servisleri ayağa kaldırma
-├── .env.example                      # Ortam değişkenleri şablonu
-├── docs/
-│   └── architecture.md               # Detaylı mimari dokümanı
-├── frontend/                         # React.js web arayüzü
-│   ├── public/
-│   ├── src/
-│   │   ├── components/               # Yeniden kullanılabilir bileşenler
-│   │   ├── pages/                    # Sayfa bileşenleri
-│   │   ├── services/                 # API çağrı servisleri
-│   │   ├── hooks/                    # Custom React hooks
-│   │   └── utils/                    # Yardımcı fonksiyonlar
-│   └── package.json
-├── backend/                          # Node.js Express API
-│   ├── src/
-│   │   ├── controllers/              # Request handler'lar
-│   │   │   ├── authController.js     # Kimlik doğrulama
-│   │   │   ├── videoController.js    # Video CRUD
-│   │   │   ├── streamController.js   # Canlı yayın yönetimi
-│   │   │   └── analysisController.js # Analiz işlemleri
-│   │   ├── services/                 # İş mantığı katmanı
-│   │   │   ├── cloudStorage.js       # S3/Azure/GCS adaptörü
-│   │   │   ├── aiService.js          # AI API entegrasyonu
-│   │   │   ├── streamService.js      # Streaming yönetimi
-│   │   │   └── videoService.js       # Video işlemleri
-│   │   ├── models/                   # Veritabanı modelleri
-│   │   │   ├── User.js               # PostgreSQL: Kullanıcı
-│   │   │   ├── Video.js              # MongoDB: Video metadata
-│   │   │   └── Analysis.js           # MongoDB: Analiz sonuçları
-│   │   ├── routes/                   # API route tanımları
-│   │   │   ├── authRoutes.js
-│   │   │   ├── videoRoutes.js
-│   │   │   ├── streamRoutes.js
-│   │   │   └── analysisRoutes.js
-│   │   ├── config/                   # Konfigürasyon dosyaları
-│   │   │   ├── database.js           # DB bağlantıları
-│   │   │   ├── aws.js                # AWS SDK yapılandırması
-│   │   │   ├── azure.js              # Azure SDK yapılandırması
-│   │   │   └── googleCloud.js        # GCP SDK yapılandırması
-│   │   └── middleware/               # Express middleware'leri
-│   │       ├── auth.js               # JWT doğrulama
-│   │       ├── upload.js             # Multer yapılandırması
-│   │       └── errorHandler.js       # Hata yönetimi
-│   ├── uploads/                      # Geçici dosya yükleme alanı
-│   └── package.json
-├── streaming-server/                 # Node-Media-Server
-│   ├── server.js                     # RTMP/WebRTC sunucu
-│   └── package.json
-├── video-processor/                  # Video işleme worker'ı
-│   ├── src/
-│   │   ├── worker.js                 # İş kuyruğu consumer'ı
-│   │   ├── frameExtractor.js         # FFmpeg frame çıkarma
-│   │   ├── aiClients/               # AI API istemcileri
-│   │   │   ├── rekognition.js        # AWS Rekognition
-│   │   │   ├── videoIndexer.js       # Azure Video Indexer
-│   │   │   └── videoIntelligence.js  # Google Video Intelligence
-│   │   └── thumbnailGenerator.js     # Thumbnail oluşturma
-│   └── package.json
+├── server.js                    # Ana sunucu giriş noktası
+├── package.json                 # Bağımlılıklar ve script'ler
+├── .env                         # Ortam değişkenleri
+├── README.md                    # Proje dokümantasyonu
+├── adimlar.md                   # Geliştirme adımları
+├── config/
+│   └── db.js                    # MongoDB bağlantı konfigürasyonu
+├── models/
+│   ├── Video.js                 # Video veri modeli
+│   └── Analysis.js              # Analiz veri modeli
+├── routes/
+│   ├── videoRoutes.js           # Video route'ları
+│   ├── streamRoutes.js          # Canlı yayın route'ları
+│   └── analysisRoutes.js        # Analiz route'ları
+├── controllers/
+│   ├── videoController.js       # Video iş mantığı
+│   ├── streamController.js      # Yayın iş mantığı
+│   └── analysisController.js    # Analiz iş mantığı
+├── services/
+│   └── aiService.js             # Bulut AI entegrasyon katmanı
+├── views/                       # EJS şablonları
+├── uploads/                     # Yüklenen videolar
+├── media/                       # RTMP medya dosyaları
+└── node_modules/                # npm paketleri
 ```
 
 ---
@@ -292,30 +256,6 @@ Proje 1 - Video Akışı ve İşleme Uygulaması/
 ---
 
 ## Veritabanı Tasarımı
-
-### PostgreSQL (İlişkisel Veriler)
-
-```sql
--- Kullanıcı tablosu
-CREATE TABLE users (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    email VARCHAR(255) UNIQUE NOT NULL,
-    password_hash VARCHAR(255) NOT NULL,
-    full_name VARCHAR(100),
-    created_at TIMESTAMP DEFAULT NOW(),
-    updated_at TIMESTAMP DEFAULT NOW()
-);
-
--- Yayın anahtarları
-CREATE TABLE stream_keys (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID REFERENCES users(id),
-    stream_key VARCHAR(64) UNIQUE NOT NULL,
-    stream_name VARCHAR(255),
-    is_active BOOLEAN DEFAULT false,
-    created_at TIMESTAMP DEFAULT NOW()
-);
-```
 
 ### MongoDB (Video Metadata & Analiz)
 
@@ -450,11 +390,8 @@ const [operation] = await videoIntelligence.annotateVideo({
 ### Ön Gereksinimler
 
 - Node.js 18+
-- Docker & Docker Compose
-- FFmpeg
-- PostgreSQL 15+
 - MongoDB 7+
-- Redis (iş kuyruğu için)
+- FFmpeg
 
 ### Ortam Değişkenleri (.env)
 
@@ -464,12 +401,6 @@ PORT=3000
 NODE_ENV=development
 
 # Veritabanı
-POSTGRES_HOST=localhost
-POSTGRES_PORT=5432
-POSTGRES_DB=video_streaming
-POSTGRES_USER=admin
-POSTGRES_PASSWORD=secret
-
 MONGODB_URI=mongodb://localhost:27017/video_streaming
 REDIS_URL=redis://localhost:6379
 

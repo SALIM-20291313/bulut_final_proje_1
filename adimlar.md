@@ -12,7 +12,7 @@ Bu proje, gerçek zamanlı video akışı yönetimi ve bulut tabanlı video anal
 
 **Kullanılan Teknolojiler:**
 - **Backend:** Node.js + Express.js
-- **Veritabanı:** JSON dosya tabanlı (`lib/db.js` - kendi yazdığımız hafif veritabanı)
+- **Veritabanı:** MongoDB (Mongoose ORM kullanılarak)
 - **Frontend:** EJS (Embedded JavaScript Templates)
 - **Video Akışı:** RTMP (Node-Media-Server)
 - **Bulut AI API'leri:** AWS Rekognition, Azure Video Indexer, Google Cloud Video Intelligence
@@ -113,15 +113,9 @@ server.js
 
 ---
 
-## Adım 5: Veritabanı Katmanının Oluşturulması (`lib/db.js`)
+## Adım 5: Veritabanı Katmanının Oluşturulması
 
-**Önemli Not:** Projede MongoDB yerine kendi yazdığımız JSON dosya tabanlı hafif bir veritabanı kullanılmıştır. Bu sayede harici bir veritabanı kurulumuna gerek kalmaz. Veriler `data/` klasöründe JSON dosyaları olarak saklanır.
-
-**`lib/db.js` Özellikleri:**
-- Mongoose benzeri API (`.find()`, `.findById()`, `.create()`, `.save()`, `.findByIdAndDelete()`)
-- Veriler otomatik olarak `data/Video.json` ve `data/Analysis.json` dosyalarına kaydedilir
-- `.sort()`, `.limit()` zincirleme sorgu desteği
-- `.save()` metodu ile doküman güncelleme desteği
+**Önemli Not:** Projede veritabanı olarak **MongoDB** kullanılmaktadır. Veritabanı bağlantısı `config/db.js` üzerinden sağlanır ve Mongoose ODM ile yönetilir.
 
 ### 5.1 Video Modeli (`models/Video.js`)
 
@@ -317,7 +311,7 @@ cd "Proje 1 - Video Akışı ve İşleme Uygulaması"
 # 2. Bağımlılıkları yükleyin (zaten yapıldı)
 npm install
 
-# 3. Uygulamayı başlatın (MongoDB gerekmez!)
+# 3. Uygulamayı başlatın (MongoDB servisinin çalıştığından emin olun)
 npm start
 ```
 
@@ -353,8 +347,8 @@ npm start
        │               │
        ▼               ▼
 ┌─────────────┐ ┌─────────────────────────┐
-│  JSON DB    │ │  Node-Media-Server       │
-│  (data/)    │ │  RTMP:1935 HTTP:8000    │
+│  MongoDB    │ │  Node-Media-Server       │
+│             │ │  RTMP:1935 HTTP:8000    │
 └─────────────┘ └───────────┬─────────────┘
                             │
                             ▼
@@ -395,13 +389,11 @@ npm start
 
 ## Karşılaşılan Zorluklar ve Çözümler
 
-1. **MongoDB Bağımlılığı:** MongoDB'nin kurulu olmaması projeyi çalıştırmayı zorlaştırıyordu. Çözüm: `lib/db.js` ile kendi JSON dosya tabanlı veritabanımızı yazdık. Veriler `data/` klasöründe saklanır, Mongoose API'si ile uyumlu çalışır.
+1. **Büyük Dosya Yükleme:** 500MB'a kadar video yüklemesi desteklenir. Multer limit aşımında hata döndürür.
 
-2. **Büyük Dosya Yükleme:** 500MB'a kadar video yüklemesi desteklenir. Multer limit aşımında hata döndürür.
+2. **API Anahtarı Olmaması:** Gerçek bulut API'leri için ücretli hesap gerekir. Çözüm: Mock veri modu ile demo çalışır.
 
-3. **API Anahtarı Olmaması:** Gerçek bulut API'leri için ücretli hesap gerekir. Çözüm: Mock veri modu ile demo çalışır.
-
-4. **RTMP Port Çakışması:** 1935 portu başka bir uygulama tarafından kullanılıyor olabilir. `.env` dosyasından değiştirilebilir.
+3. **RTMP Port Çakışması:** 1935 portu başka bir uygulama tarafından kullanılıyor olabilir. `.env` dosyasından değiştirilebilir.
 
 ---
 
@@ -414,9 +406,8 @@ Proje 1 - Video Akışı ve İşleme Uygulaması/
 ├── .env                         # Ortam değişkenleri
 ├── README.md                    # Proje dokümantasyonu
 ├── adimlar.md                   # Bu dosya - geliştirme adımları
-├── lib/
-│   └── db.js                    # JSON dosya tabanlı veritabanı
-├── data/                        # Veritabanı JSON dosyaları (otomatik oluşur)
+├── config/
+│   └── db.js                    # MongoDB bağlantı konfigürasyonu
 ├── models/
 │   ├── Video.js                 # Video veri modeli
 │   └── Analysis.js              # Analiz veri modeli
